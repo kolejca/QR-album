@@ -64,11 +64,20 @@ function createId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
+function sanitizeName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 40);
+}
+
 function publicPhoto(photo) {
   return {
     id: photo.id,
     createdAt: photo.createdAt,
     url: "/uploads/" + photo.file,
+    firstName: photo.firstName || "",
+    lastName: photo.lastName || "",
   };
 }
 
@@ -154,8 +163,17 @@ const server = http.createServer(async (req, res) => {
       let buffer = body;
       let extension = extensions[type];
 
+      let firstName = "";
+      let lastName = "";
+
       if (type === "application/json") {
         const payload = JSON.parse(body.toString("utf8"));
+        firstName = sanitizeName(payload.firstName);
+        lastName = sanitizeName(payload.lastName);
+        if (!firstName || !lastName) {
+          sendJson(res, 400, { error: "name required" });
+          return;
+        }
         const match = String(payload.image || "").match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/);
         if (!match) {
           sendJson(res, 400, { error: "bad image" });
@@ -174,7 +192,7 @@ const server = http.createServer(async (req, res) => {
         const id = createId();
         const file = id + extension;
         await fs.promises.writeFile(path.join(uploads, file), buffer);
-        const saved = { id, createdAt: Date.now(), file };
+        const saved = { id, createdAt: Date.now(), file, firstName, lastName };
         const photos = readManifest();
         photos.push(saved);
         writeManifest(photos);

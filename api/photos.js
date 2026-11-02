@@ -1,5 +1,7 @@
 const { del, list, put } = require("@vercel/blob");
 
+const MANIFEST_PATH = "photos/manifest.json";
+
 function send(res, status, body) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -33,25 +35,68 @@ function readJson(req) {
   });
 }
 
-function photoFromBlob(blob) {
-  const name = blob.pathname.split("/").pop() || "";
+function sanitizeName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 40);
+}
+
+function publicPhoto(photo) {
   return {
-    id: name.replace(/\.[^.]+$/, ""),
-    createdAt: new Date(blob.uploadedAt).getTime(),
-    url: blob.url,
+    id: photo.id,
+    createdAt: photo.createdAt,
+    url: photo.url,
+    firstName: photo.firstName || "",
+    lastName: photo.lastName || "",
   };
 }
 
+async function getManifest() {
+  const page = await list({ prefix: "photos/", limit: 1000 });
+  const manifestBlob = page.blobs.find((blob) => blob.pathname.endsWith("/manifest.json"));
+  if (!manifestBlob) {
+    return [];
+  }
+  const response = await fetch(manifestBlob.url, { cache: "no-store" });
+  if (!response.ok) {
+    return [];
+  }
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function setManifest(photos) {
+  await put(MANIFEST_PATH, JSON.stringify(photos), {
+    access: "public",
+    contentType: "application/json",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+}
+
 async function listPhotos() {
-  const photos = [];
-  let cursor;
-  do {
-    const page = await list({ prefix: "photos/", cursor, limit: 1000 });
-    photos.push(...page.blobs.map(photoFromBlob));
-    cursor = page.cursor;
-  } while (cursor);
+  const photos = await getManifest();
+  const knownIds = new Set(photos.map((photo) => photo.id));
+  const page = await list({ prefix: "photos/", limit: 1000 });
+  for (const blob of page.blobs) {
+    if (!blob.pathname.endsWith(".jpg")) {
+      continue;
+    }
+    const id = blob.pathname.split("/").pop().replace(/\.jpg$/, "");
+    if (knownIds.has(id)) {
+      continue;
+    }
+    photos.push({
+      id,
+      createdAt: new Date(blob.uploadedAt).getTime(),
+      url: blob.url,
+      firstName: "",
+      lastName: "",
+    });
+  }
   photos.sort((a, b) => b.createdAt - a.createdAt);
-  return photos;
+  return photos.map(publicPhoto);
 }
 
 module.exports = async function handler(req, res) {
@@ -65,6 +110,13 @@ module.exports = async function handler(req, res) {
 
     if (req.method === "POST") {
       const body = await readJson(req);
+      const firstName = sanitizeName(body.firstName);
+      const lastName = sanitizeName(body.lastName);
+      if (!firstName || !lastName) {
+        send(res, 400, { error: "name required" });
+        return;
+      }
+
       const match = String(body.image || "").match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/);
       if (!match) {
         send(res, 400, { error: "bad image" });
@@ -83,7 +135,19 @@ module.exports = async function handler(req, res) {
         contentType: "image/jpeg",
         addRandomSuffix: false,
       });
-      send(res, 201, { id, createdAt: Date.now(), url: blob.url });
+
+      const saved = {
+        id,
+        createdAt: Date.now(),
+        url: blob.url,
+        firstName,
+        lastName,
+      };
+
+      const photos = await getManifest();
+      photos.push(saved);
+      await setManifest(photos);
+      send(res, 201, publicPhoto(saved));
       return;
     }
 
@@ -93,9 +157,18 @@ module.exports = async function handler(req, res) {
         send(res, 400, { error: "bad id" });
         return;
       }
-      const page = await list({ prefix: "photos/" + id + "." });
-      await Promise.all(page.blobs.map((blob) => del(blob.url)));
-      send(res, 200, { id });
+
+      const photos = await getManifest();
+      const photo = photos.find((item) => item.id === id);
+      if (!photo) {
+        send(res, 404, { error: "not found" });
+        return;
+      }
+
+      const blobs = await list({ prefix: "photos/" + id + ".", limit: 10 });
+      await Promise.all(blobs.blobs.map((item) => del(item.url)));
+      await setManifest(photos.filter((item) => item.id !== id));
+      send(res, 200, publicPhoto(photo));
       return;
     }
 

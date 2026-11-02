@@ -12,6 +12,7 @@
         --muted: #9aa8b6;
         --accent: #208aef;
         --line: #2a3644;
+        --gold: #b8956a;
       }
 
       * {
@@ -52,8 +53,7 @@
         font-size: 13px;
       }
 
-      button,
-      .shoot {
+      button {
         border: 0;
         border-radius: 999px;
         background: var(--accent);
@@ -62,6 +62,20 @@
         font-weight: 700;
         padding: 12px 18px;
         cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .change-guest {
+        margin-top: 6px;
+        padding: 0;
+        background: none;
+        color: var(--gold);
+        font-size: 12px;
+        font-weight: 600;
       }
 
       main {
@@ -101,12 +115,28 @@
 
       figcaption {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
         gap: 8px;
-        padding: 8px 10px;
+        padding: 10px;
         color: var(--muted);
         font-size: 12px;
+      }
+
+      .meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .author {
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .remove {
@@ -115,6 +145,7 @@
         padding: 6px 8px;
         font-size: 12px;
         font-weight: 600;
+        flex-shrink: 0;
       }
 
       #status {
@@ -123,32 +154,161 @@
         color: #ffb4b4;
         font-size: 14px;
       }
+
+      .welcome {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(8, 12, 18, 0.88);
+        backdrop-filter: blur(6px);
+      }
+
+      .welcome[hidden] {
+        display: none;
+      }
+
+      .welcome-card {
+        width: min(400px, 100%);
+        padding: 28px 24px;
+        border-radius: 20px;
+        background: var(--card);
+        border: 1px solid var(--line);
+      }
+
+      .welcome-card h2 {
+        margin: 0 0 8px;
+        font-size: 24px;
+      }
+
+      .welcome-card p {
+        margin: 0 0 20px;
+        line-height: 1.5;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 14px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      input {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: #0f1419;
+        color: var(--text);
+        font: inherit;
+      }
+
+      .welcome-actions {
+        margin-top: 8px;
+      }
+
+      .welcome-actions button {
+        width: 100%;
+      }
     </style>
   </head>
   <body>
+    <div class="welcome" id="welcome">
+      <form class="welcome-card" id="welcomeForm">
+        <h2>Добредојде</h2>
+        <p>Напиши го твоето име и презиме пред да сликаш. Ќе се прикажат кај секоја твоја фотографија.</p>
+        <label>
+          Име
+          <input id="firstName" name="firstName" autocomplete="given-name" required maxlength="40" />
+        </label>
+        <label>
+          Презиме
+          <input id="lastName" name="lastName" autocomplete="family-name" required maxlength="40" />
+        </label>
+        <div class="welcome-actions">
+          <button type="submit">Продолжи</button>
+        </div>
+      </form>
+    </div>
+
     <header>
       <div>
         <h1>Фотоалбум</h1>
         <p id="count">Нема слики</p>
+        <p id="guestLabel"></p>
+        <button type="button" class="change-guest" id="changeGuest" hidden>Смени име</button>
       </div>
-      <button type="button" id="shoot">Сликај</button>
+      <button type="button" id="shoot" disabled>Сликај</button>
     </header>
 
     <main>
       <p id="status"></p>
-      <p class="empty" id="empty">Притисни „Сликај“ и дозволи ја камерата. Сликите од сите луѓе се појавуваат овде.</p>
+      <p class="empty" id="empty">Притисни „Сликај“ и дозволи ја камерата. Сликите од сите гости се појавуваат овде.</p>
       <div class="grid" id="grid"></div>
     </main>
 
     <input id="camera" type="file" accept="image/*" capture="environment" hidden />
 
     <script>
+      const GUEST_KEY = "qralbum-guest";
       const cameraInput = document.getElementById("camera");
       const grid = document.getElementById("grid");
       const empty = document.getElementById("empty");
       const count = document.getElementById("count");
       const status = document.getElementById("status");
-      let knownIds = null;
+      const welcome = document.getElementById("welcome");
+      const welcomeForm = document.getElementById("welcomeForm");
+      const shootButton = document.getElementById("shoot");
+      const guestLabel = document.getElementById("guestLabel");
+      const changeGuest = document.getElementById("changeGuest");
+      let knownSnapshot = null;
+      let guest = null;
+
+      function loadGuest() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(GUEST_KEY) || "null");
+          if (saved && saved.firstName && saved.lastName) {
+            return saved;
+          }
+        } catch {}
+        return null;
+      }
+
+      function saveGuest(nextGuest) {
+        guest = nextGuest;
+        localStorage.setItem(GUEST_KEY, JSON.stringify(nextGuest));
+        updateGuestUi();
+      }
+
+      function clearGuest() {
+        guest = null;
+        localStorage.removeItem(GUEST_KEY);
+        updateGuestUi();
+        welcome.hidden = false;
+      }
+
+      function updateGuestUi() {
+        if (guest) {
+          guestLabel.textContent = "Сликаш како: " + guest.firstName + " " + guest.lastName;
+          changeGuest.hidden = false;
+          shootButton.disabled = false;
+          welcome.hidden = true;
+          return;
+        }
+        guestLabel.textContent = "";
+        changeGuest.hidden = true;
+        shootButton.disabled = true;
+        welcome.hidden = false;
+      }
+
+      function guestName(photo) {
+        const full = ((photo.firstName || "") + " " + (photo.lastName || "")).trim();
+        return full || "Гостин";
+      }
 
       async function listPhotos() {
         const response = await fetch("/api/photos", { cache: "no-store" });
@@ -179,11 +339,18 @@
       }
 
       async function savePhoto(file) {
+        if (!guest) {
+          throw new Error("guest");
+        }
         const image = await compressToJpeg(file);
         const response = await fetch("/api/photos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image }),
+          body: JSON.stringify({
+            image,
+            firstName: guest.firstName,
+            lastName: guest.lastName,
+          }),
         });
         if (!response.ok) {
           throw new Error("save");
@@ -210,11 +377,11 @@
 
       async function renderAlbum() {
         const photos = await listPhotos();
-        const ids = photos.map((photo) => photo.id).join("|");
-        if (ids === knownIds) {
+        const snapshot = JSON.stringify(photos);
+        if (snapshot === knownSnapshot) {
           return;
         }
-        knownIds = ids;
+        knownSnapshot = snapshot;
         grid.replaceChildren();
         empty.hidden = photos.length > 0;
         count.textContent = photoCount(photos.length);
@@ -222,12 +389,18 @@
         for (const photo of photos) {
           const figure = document.createElement("figure");
           const image = document.createElement("img");
-          image.alt = "Слика од албумот";
+          image.alt = "Слика од " + guestName(photo);
           image.src = photo.url;
 
           const caption = document.createElement("figcaption");
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          const author = document.createElement("strong");
+          author.className = "author";
+          author.textContent = guestName(photo);
           const time = document.createElement("span");
           time.textContent = new Date(photo.createdAt).toLocaleString("mk");
+          meta.append(author, time);
 
           const remove = document.createElement("button");
           remove.type = "button";
@@ -236,19 +409,40 @@
           remove.addEventListener("click", async () => {
             try {
               await deletePhoto(photo.id);
+              knownSnapshot = null;
               await renderAlbum();
             } catch (error) {
               status.textContent = "Сликата не може да се избрише.";
             }
           });
 
-          caption.append(time, remove);
+          caption.append(meta, remove);
           figure.append(image, caption);
           grid.append(figure);
         }
       }
 
-      document.getElementById("shoot").addEventListener("click", () => {
+      welcomeForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const firstName = document.getElementById("firstName").value.trim();
+        const lastName = document.getElementById("lastName").value.trim();
+        if (!firstName || !lastName) {
+          return;
+        }
+        saveGuest({ firstName, lastName });
+      });
+
+      changeGuest.addEventListener("click", () => {
+        document.getElementById("firstName").value = guest ? guest.firstName : "";
+        document.getElementById("lastName").value = guest ? guest.lastName : "";
+        clearGuest();
+      });
+
+      shootButton.addEventListener("click", () => {
+        if (!guest) {
+          welcome.hidden = false;
+          return;
+        }
         status.textContent = "";
         cameraInput.click();
       });
@@ -264,11 +458,19 @@
         try {
           await savePhoto(file);
           status.textContent = "";
+          knownSnapshot = null;
           await renderAlbum();
         } catch (error) {
           status.textContent = "Сликата не може да се зачува. Обиди се повторно.";
         }
       });
+
+      guest = loadGuest();
+      updateGuestUi();
+      if (guest) {
+        document.getElementById("firstName").value = guest.firstName;
+        document.getElementById("lastName").value = guest.lastName;
+      }
 
       renderAlbum().catch(() => {
         status.textContent = "Албумот не може да се вчита. Освежи ја страницата.";
