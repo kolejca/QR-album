@@ -75,27 +75,21 @@
   <body>
     <main>
       <h1>MojQrApp</h1>
-      <p>Скенирај го QR кодот со апликацијата. Ќе те однесе на фотоалбумот, каде што можеш да сликаш.</p>
+      <p>Скенирај го QR кодот. Се отвора јавниот фотоалбум, за сите.</p>
       <img id="qr" alt="QR код за MojQrApp" width="240" height="240" />
       <div class="url" id="url"></div>
       <p class="note" id="note"></p>
     </main>
 
     <script>
-      const albumUrl = new URL("album.html", window.location.href).href;
+      const albumUrl = "https://qralbum-rouge.vercel.app/album.html";
       document.getElementById("url").textContent = albumUrl;
       document.getElementById("qr").src =
         "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" +
         encodeURIComponent(albumUrl);
 
-      const isLocalHost =
-        window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-
-      document.getElementById("note").textContent = window.location.protocol === "file:"
-        ? "Отвори ја страницава преку http:// (не како локален фајл), инаку телефонот нема да може да ја отвори."
-        : isLocalHost
-          ? "Отвори ја истата адреса со IP на компјутерот (не localhost), на пр. http://192.168.100.2:4173/ — инаку телефонот не може да ја отвори."
-          : "Отвори ја оваа страница на компјутер, па скенирај го кодот од телефонот.";
+      document.getElementById("note").textContent =
+        "Кодот ја отвора јавната страница, не локалниот компјутер.";
     </script>
   </body>
 </html>
