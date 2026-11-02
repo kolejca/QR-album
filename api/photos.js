@@ -125,16 +125,76 @@ async function setManifest(photos) {
   });
 }
 
+async function listBlobPhotos() {
+  const page = await list({ prefix: "photos/", limit: 1000 });
+  const found = [];
+  for (const blob of page.blobs) {
+    const parsed = photoFromPathname(blob.pathname, blob);
+    if (!parsed) {
+      continue;
+    }
+    found.push({ ...parsed, url: blob.url });
+  }
+  return found;
+}
+
+async function resolvePhotoById(id) {
+  const manifest = await getManifest();
+  const fromManifest = manifest.find((item) => item.id === id);
+  if (fromManifest) {
+    return { photo: fromManifest, manifest };
+  }
+
+  for (const blobPhoto of await listBlobPhotos()) {
+    if (blobPhoto.id === id) {
+      return { photo: blobPhoto, manifest };
+    }
+  }
+
+  return null;
+}
+
+async function deleteBlobForPhoto(photo) {
+  const urls = new Set();
+  if (photo.url) {
+    urls.add(photo.url);
+  }
+
+  const prefixes = new Set();
+  if (photo.guestFolder) {
+    prefixes.add("photos/" + photo.guestFolder + "/" + photo.id + ".");
+  }
+  prefixes.add("photos/" + photo.id + ".");
+
+  for (const prefix of prefixes) {
+    const page = await list({ prefix, limit: 10 });
+    for (const blob of page.blobs) {
+      if (blob.pathname.endsWith("manifest.json")) {
+        continue;
+      }
+      urls.add(blob.url);
+    }
+  }
+
+  await Promise.all(
+    [...urls].map(async (url) => {
+      try {
+        await del(url);
+      } catch {
+        // Blob may already be removed.
+      }
+    }),
+  );
+}
+
 async function listPhotos() {
   const photos = await getManifest();
   const knownIds = new Set(photos.map((photo) => photo.id));
-  const page = await list({ prefix: "photos/", limit: 1000 });
-  for (const blob of page.blobs) {
-    const parsed = photoFromPathname(blob.pathname, blob);
-    if (!parsed || knownIds.has(parsed.id)) {
+  for (const blobPhoto of await listBlobPhotos()) {
+    if (knownIds.has(blobPhoto.id)) {
       continue;
     }
-    photos.push(parsed);
+    photos.push(blobPhoto);
   }
   photos.sort((a, b) => b.createdAt - a.createdAt);
   return photos.map(publicPhoto);
@@ -206,20 +266,15 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      const photos = await getManifest();
-      const photo = photos.find((item) => item.id === id);
-      if (!photo) {
+      const resolved = await resolvePhotoById(id);
+      if (!resolved) {
         send(res, 404, { error: "not found" });
         return;
       }
 
-      const prefix = photo.guestFolder
-        ? "photos/" + photo.guestFolder + "/" + id + "."
-        : "photos/" + id + ".";
-      const blobs = await list({ prefix, limit: 10 });
-      await Promise.all(blobs.blobs.map((item) => del(item.url)));
-      await setManifest(photos.filter((item) => item.id !== id));
-      send(res, 200, publicPhoto(photo));
+      await deleteBlobForPhoto(resolved.photo);
+      await setManifest(resolved.manifest.filter((item) => item.id !== id));
+      send(res, 200, publicPhoto(resolved.photo));
       return;
     }
 

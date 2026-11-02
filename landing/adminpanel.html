@@ -394,6 +394,9 @@
           showLogin();
           throw new Error("auth");
         }
+        if (response.status === 404) {
+          throw new Error("missing");
+        }
         if (!response.ok) {
           throw new Error("delete");
         }
@@ -437,7 +440,11 @@
                 await render();
               } catch (error) {
                 status.textContent =
-                  error.message === "auth" ? "Сесијата истече. Најави се повторно." : "Сликата не може да се избрише.";
+                  error.message === "auth"
+                    ? "Сесијата истече. Најави се повторно."
+                    : error.message === "missing"
+                      ? "Сликата веќе не постои на серверот."
+                      : "Сликата не може да се избрише. Обиди се повторно.";
                 remove.disabled = false;
               }
             });
