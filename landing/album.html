@@ -136,98 +136,73 @@
 
     <main>
       <p id="status"></p>
-      <p class="empty" id="empty">Притисни „Сликај“ и дозволи ја камерата. Сликите остануваат на оваа страница.</p>
+      <p class="empty" id="empty">Притисни „Сликај“ и дозволи ја камерата. Сликите од сите луѓе се појавуваат овде.</p>
       <div class="grid" id="grid"></div>
     </main>
 
     <input id="camera" type="file" accept="image/*" capture="environment" hidden />
 
     <script>
-      const DB_NAME = "mojqr-album";
-      const STORE = "photos";
       const cameraInput = document.getElementById("camera");
       const grid = document.getElementById("grid");
       const empty = document.getElementById("empty");
       const count = document.getElementById("count");
       const status = document.getElementById("status");
-      const previewUrls = [];
+      let knownIds = null;
 
-      function openDb() {
-        return new Promise((resolve, reject) => {
-          const request = indexedDB.open(DB_NAME, 1);
-          request.onupgradeneeded = () => {
-            const db = request.result;
-            if (!db.objectStoreNames.contains(STORE)) {
-              db.createObjectStore(STORE, { keyPath: "id" });
-            }
-          };
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(request.error);
-        });
-      }
-
-      function run(mode, fn) {
-        return openDb().then(
-          (db) =>
-            new Promise((resolve, reject) => {
-              const tx = db.transaction(STORE, mode);
-              const result = fn(tx.objectStore(STORE));
-              tx.oncomplete = () => resolve(result);
-              tx.onerror = () => reject(tx.error);
-            }),
-        );
-      }
-
-      function listPhotos() {
-        return run("readonly", (store) => {
-          return new Promise((resolve, reject) => {
-            const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-          });
-        });
-      }
-
-      function createId() {
-        return Date.now().toString(36) + Math.random().toString(36).slice(2);
-      }
-
-      function savePhoto(file) {
-        const photo = {
-          id: createId(),
-          createdAt: Date.now(),
-          blob: file,
-        };
-        return run("readwrite", (store) => store.put(photo)).then(() => photo);
-      }
-
-      function deletePhoto(id) {
-        return run("readwrite", (store) => store.delete(id));
-      }
-
-      function clearPreviews() {
-        for (const url of previewUrls) {
-          URL.revokeObjectURL(url);
+      async function listPhotos() {
+        const response = await fetch("/api/photos", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("list");
         }
-        previewUrls.length = 0;
+        return response.json();
+      }
+
+      async function savePhoto(file) {
+        const response = await fetch("/api/photos", {
+          method: "POST",
+          headers: { "Content-Type": file.type || "application/octet-stream" },
+          body: file,
+        });
+        if (!response.ok) {
+          throw new Error("save");
+        }
+        return response.json();
+      }
+
+      async function deletePhoto(id) {
+        const response = await fetch("/api/photos/" + encodeURIComponent(id), { method: "DELETE" });
+        if (!response.ok) {
+          throw new Error("delete");
+        }
+      }
+
+      function photoCount(total) {
+        if (total === 0) {
+          return "Нема слики";
+        }
+        if (total === 1) {
+          return "1 слика";
+        }
+        return total + " слики";
       }
 
       async function renderAlbum() {
-        const photos = (await listPhotos()).sort((a, b) => b.createdAt - a.createdAt);
-        clearPreviews();
+        const photos = await listPhotos();
+        const ids = photos.map((photo) => photo.id).join("|");
+        if (ids === knownIds) {
+          return;
+        }
+        knownIds = ids;
         grid.replaceChildren();
         empty.hidden = photos.length > 0;
-        count.textContent =
-          photos.length === 0 ? "Нема слики" : photos.length === 1 ? "1 слика" : photos.length + " слики";
+        count.textContent = photoCount(photos.length);
 
         for (const photo of photos) {
-          const url = URL.createObjectURL(photo.blob);
-          previewUrls.push(url);
-
           const figure = document.createElement("figure");
           const image = document.createElement("img");
           image.alt = "Слика од албумот";
-          image.src = url;
+          image.src = photo.url;
 
           const caption = document.createElement("figcaption");
           const time = document.createElement("span");
@@ -238,8 +213,12 @@
           remove.className = "remove";
           remove.textContent = "Избриши";
           remove.addEventListener("click", async () => {
-            await deletePhoto(photo.id);
-            await renderAlbum();
+            try {
+              await deletePhoto(photo.id);
+              await renderAlbum();
+            } catch (error) {
+              status.textContent = "Сликата не може да се избрише.";
+            }
           });
 
           caption.append(time, remove);
@@ -260,17 +239,23 @@
           return;
         }
 
+        status.textContent = "Се праќа сликата...";
         try {
           await savePhoto(file);
+          status.textContent = "";
           await renderAlbum();
         } catch (error) {
-          status.textContent = "Сликата не може да се зачува на оваа страница.";
+          status.textContent = "Сликата не може да се зачува. Провери дали серверот на компјутерот работи.";
         }
       });
 
       renderAlbum().catch(() => {
-        status.textContent = "Албумот не може да се вчита во овој прелистувач.";
+        status.textContent = "Албумот не може да се вчита. Отвори ја страницата преку серверот на компјутерот.";
       });
+
+      setInterval(() => {
+        renderAlbum().catch(() => {});
+      }, 3000);
     </script>
   </body>
 </html>

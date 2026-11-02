@@ -41,6 +41,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "album": "node landing/server.js",
     "lint": "expo lint"
   },
   "private": true
