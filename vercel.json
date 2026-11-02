@@ -1,5 +1,13 @@
 {
-  "framework": null,
-  "buildCommand": "",
-  "outputDirectory": "landing"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "builds": [
+    { "src": "landing/**/*.html", "use": "@vercel/static" },
+    { "src": "api/photos.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/photos", "dest": "/api/photos.js" },
+    { "src": "/", "dest": "/landing/index.html" },
+    { "src": "/album", "dest": "/landing/album.html" },
+    { "src": "/(.*)", "dest": "/landing/$1" }
+  ]
 }

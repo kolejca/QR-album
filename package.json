@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/ui": "~58.0.26",
+    "@vercel/blob": "^2.8.2",
     "expo": "~58.0.22",
     "expo-camera": "~58.0.14",
     "expo-constants": "~58.0.14",

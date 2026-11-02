@@ -150,22 +150,30 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && pathname === "/api/photos") {
       const type = (req.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
-      const extension = extensions[type];
-      if (!extension) {
-        sendJson(res, 415, { error: "unsupported image" });
-        return;
+      const body = await readBody(req);
+      let buffer = body;
+      let extension = extensions[type];
+
+      if (type === "application/json") {
+        const payload = JSON.parse(body.toString("utf8"));
+        const match = String(payload.image || "").match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/);
+        if (!match) {
+          sendJson(res, 400, { error: "bad image" });
+          return;
+        }
+        buffer = Buffer.from(match[1], "base64");
+        extension = ".jpg";
       }
 
-      const body = await readBody(req);
-      if (!body.length) {
-        sendJson(res, 400, { error: "empty image" });
+      if (!extension || !buffer.length) {
+        sendJson(res, 415, { error: "unsupported image" });
         return;
       }
 
       const photo = await enqueue(async () => {
         const id = createId();
         const file = id + extension;
-        await fs.promises.writeFile(path.join(uploads, file), body);
+        await fs.promises.writeFile(path.join(uploads, file), buffer);
         const saved = { id, createdAt: Date.now(), file };
         const photos = readManifest();
         photos.push(saved);
@@ -178,8 +186,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     const deleteMatch = pathname.match(/^\/api\/photos\/([a-z0-9]+)$/);
-    if (req.method === "DELETE" && deleteMatch) {
-      const id = deleteMatch[1];
+    const deleteId = deleteMatch ? deleteMatch[1] : url.searchParams.get("id");
+    if (req.method === "DELETE" && deleteId && /^[a-z0-9]+$/.test(deleteId)) {
+      const id = deleteId;
       const removed = await enqueue(async () => {
         const photos = readManifest();
         const photo = photos.find((item) => item.id === id);
