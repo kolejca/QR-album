@@ -75,18 +75,18 @@
   <body>
     <main>
       <h1>MojQrApp</h1>
-      <p>Скенирај го QR кодот со апликацијата. Ќе те пренасочи на оваа страна.</p>
+      <p>Скенирај го QR кодот со апликацијата. Ќе те однесе на фотоалбумот, каде што можеш да сликаш.</p>
       <img id="qr" alt="QR код за MojQrApp" width="240" height="240" />
       <div class="url" id="url"></div>
       <p class="note" id="note"></p>
     </main>
 
     <script>
-      const pageUrl = window.location.href;
-      document.getElementById("url").textContent = pageUrl;
+      const albumUrl = new URL("album.html", window.location.href).href;
+      document.getElementById("url").textContent = albumUrl;
       document.getElementById("qr").src =
         "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" +
-        encodeURIComponent(pageUrl);
+        encodeURIComponent(albumUrl);
 
       const isLocalHost =
         window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";

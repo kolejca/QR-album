@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="mk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Фотоалбум</title>
+    <style>
+      :root {
+        --bg: #0f1419;
+        --card: #1a222c;
+        --text: #f4f7fb;
+        --muted: #9aa8b6;
+        --accent: #208aef;
+        --line: #2a3644;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: radial-gradient(circle at top, #17324d 0%, var(--bg) 42%);
+        color: var(--text);
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px;
+        background: rgba(15, 20, 25, 0.92);
+        border-bottom: 1px solid var(--line);
+        backdrop-filter: blur(10px);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: -0.03em;
+      }
+
+      p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      button,
+      .shoot {
+        border: 0;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-weight: 700;
+        padding: 12px 18px;
+        cursor: pointer;
+      }
+
+      main {
+        width: min(720px, 100%);
+        margin: 0 auto;
+        padding: 16px;
+      }
+
+      .empty {
+        margin: 48px 0;
+        text-align: center;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      figure {
+        margin: 0;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+      }
+
+      img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        background: #0b1016;
+      }
+
+      figcaption {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .remove {
+        background: transparent;
+        color: #f4f7fb;
+        padding: 6px 8px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      #status {
+        min-height: 1.2em;
+        margin: 0 0 12px;
+        color: #ffb4b4;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Фотоалбум</h1>
+        <p id="count">Нема слики</p>
+      </div>
+      <button type="button" id="shoot">Сликај</button>
+    </header>
+
+    <main>
+      <p id="status"></p>
+      <p class="empty" id="empty">Притисни „Сликај“ и дозволи ја камерата. Сликите остануваат на оваа страница.</p>
+      <div class="grid" id="grid"></div>
+    </main>
+
+    <input id="camera" type="file" accept="image/*" capture="environment" hidden />
+
+    <script>
+      const DB_NAME = "mojqr-album";
+      const STORE = "photos";
+      const cameraInput = document.getElementById("camera");
+      const grid = document.getElementById("grid");
+      const empty = document.getElementById("empty");
+      const count = document.getElementById("count");
+      const status = document.getElementById("status");
+      const previewUrls = [];
+
+      function openDb() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, 1);
+          request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(STORE)) {
+              db.createObjectStore(STORE, { keyPath: "id" });
+            }
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      function run(mode, fn) {
+        return openDb().then(
+          (db) =>
+            new Promise((resolve, reject) => {
+              const tx = db.transaction(STORE, mode);
+              const result = fn(tx.objectStore(STORE));
+              tx.oncomplete = () => resolve(result);
+              tx.onerror = () => reject(tx.error);
+            }),
+        );
+      }
+
+      function listPhotos() {
+        return run("readonly", (store) => {
+          return new Promise((resolve, reject) => {
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+        });
+      }
+
+      function createId() {
+        return Date.now().toString(36) + Math.random().toString(36).slice(2);
+      }
+
+      function savePhoto(file) {
+        const photo = {
+          id: createId(),
+          createdAt: Date.now(),
+          blob: file,
+        };
+        return run("readwrite", (store) => store.put(photo)).then(() => photo);
+      }
+
+      function deletePhoto(id) {
+        return run("readwrite", (store) => store.delete(id));
+      }
+
+      function clearPreviews() {
+        for (const url of previewUrls) {
+          URL.revokeObjectURL(url);
+        }
+        previewUrls.length = 0;
+      }
+
+      async function renderAlbum() {
+        const photos = (await listPhotos()).sort((a, b) => b.createdAt - a.createdAt);
+        clearPreviews();
+        grid.replaceChildren();
+        empty.hidden = photos.length > 0;
+        count.textContent =
+          photos.length === 0 ? "Нема слики" : photos.length === 1 ? "1 слика" : photos.length + " слики";
+
+        for (const photo of photos) {
+          const url = URL.createObjectURL(photo.blob);
+          previewUrls.push(url);
+
+          const figure = document.createElement("figure");
+          const image = document.createElement("img");
+          image.alt = "Слика од албумот";
+          image.src = url;
+
+          const caption = document.createElement("figcaption");
+          const time = document.createElement("span");
+          time.textContent = new Date(photo.createdAt).toLocaleString("mk");
+
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "remove";
+          remove.textContent = "Избриши";
+          remove.addEventListener("click", async () => {
+            await deletePhoto(photo.id);
+            await renderAlbum();
+          });
+
+          caption.append(time, remove);
+          figure.append(image, caption);
+          grid.append(figure);
+        }
+      }
+
+      document.getElementById("shoot").addEventListener("click", () => {
+        status.textContent = "";
+        cameraInput.click();
+      });
+
+      cameraInput.addEventListener("change", async () => {
+        const file = cameraInput.files && cameraInput.files[0];
+        cameraInput.value = "";
+        if (!file) {
+          return;
+        }
+
+        try {
+          await savePhoto(file);
+          await renderAlbum();
+        } catch (error) {
+          status.textContent = "Сликата не може да се зачува на оваа страница.";
+        }
+      });
+
+      renderAlbum().catch(() => {
+        status.textContent = "Албумот не може да се вчита во овој прелистувач.";
+      });
+    </script>
+  </body>
+</html>
