@@ -115,122 +115,31 @@
         transform: translateY(-6px);
       }
 
-      .folder-card:hover .folder-body {
-        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
-      }
-
       .folder-stack {
-        --folder-color: #29b6f6;
         position: relative;
-        aspect-ratio: 0.92;
+        aspect-ratio: 1;
         transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-        filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.35));
-      }
-
-      .folder-fan {
-        position: absolute;
-        inset: 10% 4% 6%;
-        pointer-events: none;
-      }
-
-      .folder-sheet {
-        --sheet-color: #e53935;
-        --fan-i: 0;
-        --fan-total: 1;
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(165deg, color-mix(in srgb, var(--sheet-color) 88%, #fff), var(--sheet-color));
-        border-radius: 5px 14px 14px 14px;
-        box-shadow:
-          0 2px 0 rgba(255, 255, 255, 0.22) inset,
-          0 8px 16px rgba(0, 0, 0, 0.22);
-        transform-origin: 18% 92%;
-        transform: rotate(calc(-20deg + (var(--fan-i) + 1) * (40deg / var(--fan-total))))
-          translateY(calc(var(--fan-i) * -2px));
-        z-index: calc(var(--fan-i) + 1);
-      }
-
-      .folder-sheet::before {
-        content: "";
-        position: absolute;
-        top: -10px;
-        left: 14%;
-        width: 34%;
-        height: 12px;
-        border-radius: 7px 7px 0 0;
-        background: color-mix(in srgb, var(--sheet-color) 92%, #fff);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
-      }
-
-      .folder-holes {
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        z-index: 2;
-      }
-
-      .folder-hole {
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        background: rgba(0, 0, 0, 0.12);
-        box-shadow:
-          inset 0 1px 2px rgba(0, 0, 0, 0.35),
-          0 1px 0 rgba(255, 255, 255, 0.2);
-      }
-
-      .folder-body {
-        position: absolute;
-        inset: 14% 10% 8% 10%;
-        z-index: 12;
-        background: linear-gradient(165deg, color-mix(in srgb, var(--folder-color) 85%, #fff), var(--folder-color));
-        border-radius: 6px 16px 16px 16px;
-        box-shadow:
-          0 2px 0 rgba(255, 255, 255, 0.25) inset,
-          0 12px 28px rgba(0, 0, 0, 0.35);
-        transition: box-shadow 0.35s ease;
-        overflow: visible;
-      }
-
-      .folder-tab {
-        position: absolute;
-        top: -12px;
-        left: 12%;
-        width: 40%;
-        height: 14px;
-        border-radius: 8px 8px 0 0;
-        background: color-mix(in srgb, var(--folder-color) 90%, #fff);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
-        z-index: 3;
       }
 
       .folder-peeks {
         position: absolute;
-        top: 16%;
-        left: 22%;
-        right: 10%;
-        height: 58%;
-        z-index: 1;
+        inset: 4% 2% 14%;
         pointer-events: none;
       }
 
       .folder-peek {
         --peek-i: 0;
         position: absolute;
-        bottom: 0;
-        width: 46%;
+        bottom: 8%;
+        width: 50%;
         aspect-ratio: 3 / 4;
         object-fit: cover;
         border-radius: 6px 6px 2px 2px;
-        border: 2px solid rgba(255, 255, 255, 0.92);
-        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+        border: 3px solid rgba(255, 255, 255, 0.95);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
         transform-origin: 50% 100%;
-        transform: rotate(calc(-10deg + var(--peek-i) * 7deg))
-          translateX(calc(var(--peek-i) * 18% - 18%));
+        transform: rotate(calc(-11deg + var(--peek-i) * 11deg))
+          translateX(calc(var(--peek-i) * 22% - 22%));
       }
 
       .folder-peek:nth-child(1) {
@@ -239,34 +148,35 @@
       }
 
       .folder-peek:nth-child(2) {
-        left: 18%;
+        left: 22%;
         z-index: 2;
       }
 
       .folder-peek:nth-child(3) {
-        left: 36%;
+        left: 44%;
         z-index: 3;
-      }
-
-      .folder-peek:nth-child(4) {
-        left: 54%;
-        z-index: 4;
-      }
-
-      .folder-stack.is-single .folder-fan {
-        display: none;
       }
 
       .folder-stack.is-single .folder-peek {
         left: 50%;
-        width: 62%;
+        width: 66%;
         transform: translateX(-50%) rotate(0deg);
+      }
+
+      .folder-stack.is-duo .folder-peek:nth-child(1) {
+        left: 6%;
+        transform: rotate(-9deg);
+      }
+
+      .folder-stack.is-duo .folder-peek:nth-child(2) {
+        left: 44%;
+        transform: rotate(9deg);
       }
 
       .folder-badge {
         position: absolute;
-        right: 6%;
-        bottom: 6%;
+        right: 4%;
+        bottom: 0;
         z-index: 20;
         padding: 6px 10px;
         border-radius: 999px;
@@ -781,68 +691,16 @@
         return total + " слики";
       }
 
-      const FOLDER_PALETTE = [
-        "#e53935",
-        "#ec407a",
-        "#fb8c00",
-        "#fdd835",
-        "#43a047",
-        "#26c6da",
-        "#1e88e5",
-        "#8e24aa",
-      ];
-
-      function folderPaletteIndex(key, offset) {
-        let hash = 0;
-        for (let i = 0; i < key.length; i += 1) {
-          hash = (hash + key.charCodeAt(i) * (i + 1)) | 0;
-        }
-        return Math.abs(hash + offset) % FOLDER_PALETTE.length;
-      }
-
-      function appendFolderHoles(parent) {
-        const holes = document.createElement("div");
-        holes.className = "folder-holes";
-        holes.setAttribute("aria-hidden", "true");
-        for (let h = 0; h < 3; h += 1) {
-          const hole = document.createElement("span");
-          hole.className = "folder-hole";
-          holes.append(hole);
-        }
-        parent.append(holes);
-      }
-
-      function buildFolderStack(group, key, cardIndex) {
+      function buildFolderStack(group) {
         const stack = document.createElement("div");
         const count = group.photos.length;
-        stack.className = "folder-stack" + (count === 1 ? " is-single" : "");
-        stack.style.setProperty("--folder-color", FOLDER_PALETTE[folderPaletteIndex(key, cardIndex)]);
-
-        const fan = document.createElement("div");
-        fan.className = "folder-fan";
-        const fanSheets = Math.min(7, Math.max(2, count + 1));
-        for (let s = 0; s < fanSheets - 1; s += 1) {
-          const sheet = document.createElement("div");
-          sheet.className = "folder-sheet";
-          sheet.style.setProperty("--sheet-color", FOLDER_PALETTE[folderPaletteIndex(key, cardIndex + s + 1)]);
-          sheet.style.setProperty("--fan-i", String(s));
-          sheet.style.setProperty("--fan-total", String(fanSheets));
-          appendFolderHoles(sheet);
-          fan.append(sheet);
-        }
-        stack.append(fan);
-
-        const body = document.createElement("div");
-        body.className = "folder-body";
-        const tab = document.createElement("div");
-        tab.className = "folder-tab";
-        tab.setAttribute("aria-hidden", "true");
-        body.append(tab);
-        appendFolderHoles(body);
+        const stackClass =
+          count === 1 ? " is-single" : count === 2 ? " is-duo" : count >= 3 ? " is-trio" : "";
+        stack.className = "folder-stack" + stackClass;
 
         const peeks = document.createElement("div");
         peeks.className = "folder-peeks";
-        group.photos.slice(0, Math.min(4, count)).forEach((photo, peekIndex) => {
+        group.photos.slice(0, Math.min(3, count)).forEach((photo, peekIndex) => {
           const peek = document.createElement("img");
           peek.className = "folder-peek";
           peek.alt = "";
@@ -852,8 +710,7 @@
           peek.style.setProperty("--peek-i", String(peekIndex));
           peeks.append(peek);
         });
-        body.append(peeks);
-        stack.append(body);
+        stack.append(peeks);
 
         const badge = document.createElement("span");
         badge.className = "folder-badge";
@@ -903,7 +760,7 @@
           button.type = "button";
           button.className = "folder-card";
           button.style.setProperty("--i", String(index));
-          const stack = buildFolderStack(group, key, index);
+          const stack = buildFolderStack(group);
           index += 1;
 
           const name = document.createElement("strong");
