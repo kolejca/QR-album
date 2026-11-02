@@ -44,3 +44,5 @@ example
 
 # shared album photos
 landing/uploads/
+.vercel
+.env*
