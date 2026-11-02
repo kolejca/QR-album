@@ -3,14 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MojQrApp</title>
+    <title>Споделете ги вашите моменти</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <style>
       :root {
-        --bg: #0f1419;
-        --card: #1a222c;
-        --text: #f4f7fb;
-        --muted: #9aa8b6;
-        --accent: #208aef;
+        --cream: #faf8f5;
+        --gold: #b8956a;
+        --gold-dark: #8f7352;
+        --text: #3d3429;
+        --muted: #6b6258;
       }
 
       * {
@@ -20,76 +26,163 @@
       body {
         margin: 0;
         min-height: 100vh;
-        font-family: "Segoe UI", system-ui, sans-serif;
-        background: radial-gradient(circle at top, #17324d 0%, var(--bg) 42%);
+        font-family: "Montserrat", system-ui, sans-serif;
         color: var(--text);
-        display: grid;
-        place-items: center;
-        padding: 32px 16px;
+        background: var(--cream);
       }
 
-      main {
-        width: min(440px, 100%);
-        background: var(--card);
-        border: 1px solid #2a3644;
-        border-radius: 24px;
-        padding: 32px 24px;
+      .hero {
+        position: fixed;
+        inset: 0;
+        background: url("wedding-hero.png") center / cover no-repeat;
+        z-index: 0;
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(250, 248, 245, 0.92) 0%,
+          rgba(250, 248, 245, 0.78) 45%,
+          rgba(250, 248, 245, 0.55) 100%
+        );
+      }
+
+      .page {
+        position: relative;
+        z-index: 1;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 20px;
+      }
+
+      .card {
+        width: min(420px, 100%);
         text-align: center;
+        padding: 40px 32px 36px;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(184, 149, 106, 0.35);
+        border-radius: 4px;
+        box-shadow:
+          0 24px 64px rgba(61, 52, 41, 0.08),
+          0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+        backdrop-filter: blur(8px);
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--gold-dark);
       }
 
       h1 {
-        margin: 0 0 8px;
-        font-size: 32px;
-        letter-spacing: -0.03em;
+        margin: 0 0 6px;
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: clamp(2rem, 6vw, 2.75rem);
+        font-weight: 600;
+        line-height: 1.15;
+        color: var(--text);
       }
 
-      p {
-        margin: 0 0 24px;
+      .subtitle {
+        margin: 0 0 28px;
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 1.25rem;
+        font-style: italic;
         color: var(--muted);
-        line-height: 1.5;
+      }
+
+      .divider {
+        width: 48px;
+        height: 1px;
+        margin: 0 auto 28px;
+        background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      }
+
+      .lead {
+        margin: 0 0 24px;
+        font-size: 14px;
+        line-height: 1.65;
+        color: var(--muted);
+      }
+
+      .qr-frame {
+        display: inline-block;
+        padding: 14px;
+        background: #fff;
+        border: 1px solid rgba(184, 149, 106, 0.45);
+        box-shadow: 0 8px 24px rgba(61, 52, 41, 0.06);
       }
 
       #qr {
         display: block;
-        width: 240px;
-        height: 240px;
-        margin: 0 auto 16px;
-        background: #fff;
-        border-radius: 16px;
-        padding: 12px;
+        width: 200px;
+        height: 200px;
+      }
+
+      .scan-hint {
+        margin: 20px 0 0;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--gold-dark);
       }
 
       .url {
-        font-family: ui-monospace, Consolas, monospace;
-        font-size: 12px;
+        margin-top: 16px;
+        font-size: 10px;
         word-break: break-all;
-        color: var(--accent);
+        color: var(--muted);
+        opacity: 0.85;
       }
 
-      .note {
-        margin-top: 20px;
-        font-size: 13px;
+      .footer {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(184, 149, 106, 0.2);
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--muted);
       }
     </style>
   </head>
   <body>
-    <main>
-      <h1>MojQrApp</h1>
-      <p>Скенирај го QR кодот. Се отвора јавниот фотоалбум, за сите.</p>
-      <img id="qr" alt="QR код за MojQrApp" width="240" height="240" />
-      <div class="url" id="url"></div>
-      <p class="note" id="note"></p>
-    </main>
+    <div class="hero" aria-hidden="true"></div>
+    <div class="page">
+      <main class="card">
+        <p class="eyebrow">Добредојде</p>
+        <h1>Споделете ги<br />вашите моменти</h1>
+        <p class="subtitle">Заеднички фотоалбум</p>
+        <div class="divider"></div>
+        <p class="lead">
+          Скенирајте го QR кодот со телефонот, сликајте и вашите фотографии ќе се појават во
+          албумот за сите гости.
+        </p>
+        <div class="qr-frame">
+          <img id="qr" alt="QR код за фотоалбумот" width="200" height="200" />
+        </div>
+        <p class="scan-hint">Скенирај &amp; сликај</p>
+        <div class="url" id="url"></div>
+        <p class="footer" id="note"></p>
+      </main>
+    </div>
 
     <script>
       const albumUrl = "https://qralbum-rouge.vercel.app/album.html";
       document.getElementById("url").textContent = albumUrl;
       document.getElementById("qr").src =
-        "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" +
+        "https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=3d3429&bgcolor=ffffff&data=" +
         encodeURIComponent(albumUrl);
-
       document.getElementById("note").textContent =
-        "Кодот ја отвора јавната страница, не локалниот компјутер.";
+        "Поставете ја оваа страница на маса или влез — гостите го скенираат кодот без апликација.";
     </script>
   </body>
 </html>
