@@ -2,12 +2,15 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "builds": [
     { "src": "landing/**/*.html", "use": "@vercel/static" },
-    { "src": "api/photos.js", "use": "@vercel/node" }
+    { "src": "api/photos.js", "use": "@vercel/node" },
+    { "src": "api/admin.js", "use": "@vercel/node" }
   ],
   "routes": [
+    { "src": "/api/admin", "dest": "/api/admin.js" },
     { "src": "/api/photos", "dest": "/api/photos.js" },
     { "src": "/", "dest": "/landing/index.html" },
     { "src": "/album", "dest": "/landing/album.html" },
+    { "src": "/adminpanel", "dest": "/landing/adminpanel.html" },
     { "src": "/(.*)", "dest": "/landing/$1" }
   ]
 }

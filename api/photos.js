@@ -1,6 +1,12 @@
 const { del, list, put } = require("@vercel/blob");
 
 const MANIFEST_PATH = "photos/manifest.json";
+const ADMIN_PIN = process.env.QR_ALBUM_ADMIN_PIN || "";
+
+function isAdmin(req) {
+  const pin = req.headers["x-admin-pin"];
+  return Boolean(ADMIN_PIN && pin === ADMIN_PIN);
+}
 
 function send(res, status, body) {
   res.statusCode = status;
@@ -189,6 +195,11 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === "DELETE") {
+      if (!isAdmin(req)) {
+        send(res, 403, { error: "admin required" });
+        return;
+      }
+
       const id = url.searchParams.get("id") || "";
       if (!/^[a-z0-9]+$/.test(id)) {
         send(res, 400, { error: "bad id" });

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="mk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Админ — Фотоалбум</title>
+    <style>
+      :root {
+        --bg: #0f1419;
+        --card: #1a222c;
+        --text: #f4f7fb;
+        --muted: #9aa8b6;
+        --accent: #208aef;
+        --danger: #e5534b;
+        --line: #2a3644;
+        --gold: #b8956a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: radial-gradient(circle at top, #2a1a1a 0%, var(--bg) 45%);
+        color: var(--text);
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px;
+        background: rgba(15, 20, 25, 0.94);
+        border-bottom: 1px solid var(--line);
+        backdrop-filter: blur(10px);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -0.03em;
+      }
+
+      .sub {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      a.link-btn,
+      button {
+        border: 0;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-weight: 700;
+        padding: 10px 16px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      button.ghost {
+        background: transparent;
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+
+      button.danger {
+        background: var(--danger);
+      }
+
+      button.small {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+
+      main {
+        width: min(960px, 100%);
+        margin: 0 auto;
+        padding: 16px;
+      }
+
+      .login-wrap {
+        min-height: calc(100vh - 80px);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .login-card {
+        width: min(400px, 100%);
+        padding: 24px;
+        border-radius: 16px;
+        background: var(--card);
+        border: 1px solid var(--line);
+      }
+
+      .login-card h2 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+
+      .login-card p {
+        margin: 0 0 20px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 16px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      input {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: #0f1419;
+        color: var(--text);
+        font: inherit;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .stat {
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: var(--card);
+        border: 1px solid var(--line);
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 24px;
+        margin-bottom: 4px;
+      }
+
+      .stat span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      #status {
+        min-height: 1.2em;
+        color: var(--gold);
+        font-size: 14px;
+        margin: 0 0 12px;
+      }
+
+      .section {
+        margin-bottom: 28px;
+      }
+
+      .section h3 {
+        margin: 0 0 12px;
+        font-size: 16px;
+        color: var(--gold);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
+      }
+
+      figure {
+        margin: 0;
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--card);
+        border: 1px solid var(--line);
+      }
+
+      figure img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+      }
+
+      figcaption {
+        padding: 8px 10px 10px;
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+
+      figcaption .name {
+        display: block;
+        color: var(--text);
+        font-weight: 600;
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+
+      figcaption button {
+        width: 100%;
+        margin-top: 8px;
+      }
+
+      .empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 48px 16px;
+      }
+
+      .panel[hidden],
+      .login-wrap[hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Админ панел</h1>
+        <p class="sub">Управување со фотоалбумот</p>
+      </div>
+      <div class="header-actions" id="headerActions" hidden>
+        <a class="link-btn ghost" href="/album.html">Кон албумот</a>
+        <button type="button" class="ghost" id="logoutBtn">Одјава</button>
+      </div>
+    </header>
+
+    <div class="login-wrap" id="loginWrap">
+      <form class="login-card" id="loginForm">
+        <h2>Најава</h2>
+        <p>Оваа страница е само за организаторот. Гостите ја користат <a href="/album.html" style="color: var(--accent)">album.html</a>.</p>
+        <label>
+          Админ PIN
+          <input id="adminPin" name="adminPin" type="password" inputmode="numeric" autocomplete="off" required maxlength="32" />
+        </label>
+        <p id="loginError" style="color: var(--danger); font-size: 13px; min-height: 1.2em; margin: 0 0 12px"></p>
+        <button type="submit" style="width: 100%">Најави се</button>
+      </form>
+    </div>
+
+    <main class="panel" id="panel" hidden>
+      <p id="status"></p>
+      <div class="stats">
+        <div class="stat">
+          <strong id="statPhotos">0</strong>
+          <span>Вкупно слики</span>
+        </div>
+        <div class="stat">
+          <strong id="statGuests">0</strong>
+          <span>Гости</span>
+        </div>
+      </div>
+      <div id="sections"></div>
+      <p class="empty" id="empty" hidden>Нема слики во албумот.</p>
+    </main>
+
+    <script>
+      const ADMIN_KEY = "qralbum-admin";
+      const ADMIN_PIN_KEY = "qralbum-admin-pin";
+
+      const loginWrap = document.getElementById("loginWrap");
+      const loginForm = document.getElementById("loginForm");
+      const loginError = document.getElementById("loginError");
+      const panel = document.getElementById("panel");
+      const headerActions = document.getElementById("headerActions");
+      const sections = document.getElementById("sections");
+      const empty = document.getElementById("empty");
+      const status = document.getElementById("status");
+      let knownSnapshot = null;
+      let pollTimer = null;
+
+      function isLoggedIn() {
+        return sessionStorage.getItem(ADMIN_KEY) === "1";
+      }
+
+      function getPin() {
+        return sessionStorage.getItem(ADMIN_PIN_KEY) || "";
+      }
+
+      function showPanel() {
+        loginWrap.hidden = true;
+        panel.hidden = false;
+        headerActions.hidden = false;
+        if (!pollTimer) {
+          pollTimer = window.setInterval(() => {
+            render().catch(() => {});
+          }, 3000);
+        }
+        render().catch(() => {
+          status.textContent = "Не може да се вчита албумот.";
+        });
+      }
+
+      function showLogin() {
+        if (pollTimer) {
+          window.clearInterval(pollTimer);
+          pollTimer = null;
+        }
+        sessionStorage.removeItem(ADMIN_KEY);
+        sessionStorage.removeItem(ADMIN_PIN_KEY);
+        loginWrap.hidden = false;
+        panel.hidden = true;
+        headerActions.hidden = true;
+        knownSnapshot = null;
+      }
+
+      async function verifyPin(pin) {
+        const response = await fetch("/api/admin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pin }),
+        });
+        return response.ok;
+      }
+
+      function login(pin) {
+        sessionStorage.setItem(ADMIN_KEY, "1");
+        sessionStorage.setItem(ADMIN_PIN_KEY, pin);
+        showPanel();
+      }
+
+      function guestName(photo) {
+        const first = (photo.firstName || "").trim();
+        const last = (photo.lastName || "").trim();
+        if (first || last) {
+          return (first + " " + last).trim();
+        }
+        return "Гостин";
+      }
+
+      function groupKey(photo) {
+        if (photo.guestFolder) {
+          return photo.guestFolder;
+        }
+        return guestName(photo).toLowerCase().replace(/[^a-z0-9]+/g, "-") || "guest";
+      }
+
+      function groupPhotos(photos) {
+        const groups = new Map();
+        for (const photo of photos) {
+          const key = groupKey(photo);
+          if (!groups.has(key)) {
+            groups.set(key, { label: guestName(photo), photos: [] });
+          }
+          groups.get(key).photos.push(photo);
+        }
+        for (const group of groups.values()) {
+          group.photos.sort((a, b) => b.createdAt - a.createdAt);
+        }
+        return groups;
+      }
+
+      async function listPhotos() {
+        const response = await fetch("/api/photos", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("list");
+        }
+        return response.json();
+      }
+
+      async function deletePhoto(id) {
+        const response = await fetch("/api/photos?id=" + encodeURIComponent(id), {
+          method: "DELETE",
+          headers: { "X-Admin-Pin": getPin() },
+        });
+        if (response.status === 403) {
+          showLogin();
+          throw new Error("auth");
+        }
+        if (!response.ok) {
+          throw new Error("delete");
+        }
+      }
+
+      function renderSections(groups) {
+        sections.replaceChildren();
+        for (const [, group] of groups) {
+          const section = document.createElement("section");
+          section.className = "section";
+          const title = document.createElement("h3");
+          title.textContent = group.label + " (" + group.photos.length + ")";
+          const grid = document.createElement("div");
+          grid.className = "grid";
+
+          for (const photo of group.photos) {
+            const figure = document.createElement("figure");
+            const img = document.createElement("img");
+            img.alt = "Слика";
+            img.src = photo.url;
+            const cap = document.createElement("figcaption");
+            const name = document.createElement("span");
+            name.className = "name";
+            name.textContent = guestName(photo);
+            const time = document.createElement("span");
+            time.textContent = new Date(photo.createdAt).toLocaleString("mk");
+            const remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "danger small";
+            remove.textContent = "Избриши";
+            remove.addEventListener("click", async () => {
+              if (!window.confirm("Да се избрише оваа слика?")) {
+                return;
+              }
+              remove.disabled = true;
+              status.textContent = "Се брише...";
+              try {
+                await deletePhoto(photo.id);
+                status.textContent = "";
+                knownSnapshot = null;
+                await render();
+              } catch (error) {
+                status.textContent =
+                  error.message === "auth" ? "Сесијата истече. Најави се повторно." : "Сликата не може да се избрише.";
+                remove.disabled = false;
+              }
+            });
+            cap.append(name, time, remove);
+            figure.append(img, cap);
+            grid.append(figure);
+          }
+
+          section.append(title, grid);
+          sections.append(section);
+        }
+      }
+
+      async function render() {
+        if (!isLoggedIn()) {
+          return;
+        }
+        const photos = await listPhotos();
+        const snapshot = JSON.stringify(photos);
+        if (snapshot === knownSnapshot) {
+          return;
+        }
+        knownSnapshot = snapshot;
+
+        document.getElementById("statPhotos").textContent = String(photos.length);
+        const groups = groupPhotos(photos);
+        document.getElementById("statGuests").textContent = String(groups.size);
+
+        if (photos.length === 0) {
+          empty.hidden = false;
+          sections.replaceChildren();
+          return;
+        }
+        empty.hidden = true;
+        renderSections(groups);
+      }
+
+      loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        loginError.textContent = "";
+        const pin = document.getElementById("adminPin").value.trim();
+        if (!pin) {
+          return;
+        }
+        try {
+          const ok = await verifyPin(pin);
+          if (!ok) {
+            loginError.textContent = "Погрешен PIN.";
+            return;
+          }
+          document.getElementById("adminPin").value = "";
+          login(pin);
+        } catch (error) {
+          loginError.textContent = "Најавата не успеа. Провери ја врската.";
+        }
+      });
+
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        showLogin();
+        loginError.textContent = "";
+      });
+
+      if (isLoggedIn() && getPin()) {
+        verifyPin(getPin())
+          .then((ok) => {
+            if (ok) {
+              showPanel();
+            } else {
+              showLogin();
+            }
+          })
+          .catch(() => showLogin());
+      } else {
+        showLogin();
+      }
+    </script>
+  </body>
+</html>

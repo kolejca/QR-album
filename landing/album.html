@@ -638,13 +638,6 @@
         return response.json();
       }
 
-      async function deletePhoto(id) {
-        const response = await fetch("/api/photos?id=" + encodeURIComponent(id), { method: "DELETE" });
-        if (!response.ok) {
-          throw new Error("delete");
-        }
-      }
-
       function photoCount(total) {
         if (total === 0) {
           return "Нема слики";
@@ -765,22 +758,7 @@
         time.textContent = new Date(photo.createdAt).toLocaleString("mk");
         meta.append(time);
 
-        const remove = document.createElement("button");
-        remove.type = "button";
-        remove.className = "remove";
-        remove.textContent = "Избриши";
-        remove.addEventListener("click", async (event) => {
-          event.stopPropagation();
-          try {
-            await deletePhoto(photo.id);
-            knownSnapshot = null;
-            await renderAlbum();
-          } catch (error) {
-            status.textContent = "Сликата не може да се избрише.";
-          }
-        });
-
-        caption.append(meta, remove);
+        caption.append(meta);
         figure.append(image, caption);
         return figure;
       }

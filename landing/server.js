@@ -7,6 +7,7 @@ const uploads = path.join(root, "uploads");
 const manifestPath = path.join(uploads, "manifest.json");
 const port = Number(process.env.PORT) || 4173;
 const maxBytes = 12 * 1024 * 1024;
+const ADMIN_PIN = process.env.QR_ALBUM_ADMIN_PIN || "";
 
 const extensions = {
   "image/jpeg": ".jpg",
@@ -93,6 +94,11 @@ function publicPhoto(photo) {
   };
 }
 
+function isAdmin(req) {
+  const pin = req.headers["x-admin-pin"];
+  return Boolean(ADMIN_PIN && pin === ADMIN_PIN);
+}
+
 function sendJson(res, status, body) {
   const data = Buffer.from(JSON.stringify(body));
   res.writeHead(status, {
@@ -160,6 +166,18 @@ const server = http.createServer(async (req, res) => {
   const pathname = url.pathname;
 
   try {
+    if (req.method === "POST" && pathname === "/api/admin") {
+      const body = await readBody(req);
+      const payload = JSON.parse(body.toString("utf8"));
+      const pin = String(payload.pin || "");
+      if (ADMIN_PIN && pin === ADMIN_PIN) {
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+      sendJson(res, 403, { error: "invalid pin" });
+      return;
+    }
+
     if (req.method === "GET" && pathname === "/api/photos") {
       const photos = readManifest()
         .slice()
@@ -227,6 +245,10 @@ const server = http.createServer(async (req, res) => {
     const deleteMatch = pathname.match(/^\/api\/photos\/([a-z0-9]+)$/);
     const deleteId = deleteMatch ? deleteMatch[1] : url.searchParams.get("id");
     if (req.method === "DELETE" && deleteId && /^[a-z0-9]+$/.test(deleteId)) {
+      if (!isAdmin(req)) {
+        sendJson(res, 403, { error: "admin required" });
+        return;
+      }
       const id = deleteId;
       const removed = await enqueue(async () => {
         const photos = readManifest();
@@ -249,6 +271,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (pathname === "/album") {
       filePath = path.join(root, "album.html");
+    }
+    if (pathname === "/adminpanel") {
+      filePath = path.join(root, "adminpanel.html");
     }
 
     fs.stat(filePath, (error, stat) => {
