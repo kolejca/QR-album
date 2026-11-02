@@ -42,6 +42,17 @@ function sanitizeName(value) {
     .slice(0, 40);
 }
 
+function guestFolder(firstName, lastName) {
+  const slug = (sanitizeName(firstName) + " " + sanitizeName(lastName))
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return slug || "guest";
+}
+
 function publicPhoto(photo) {
   return {
     id: photo.id,
@@ -49,6 +60,39 @@ function publicPhoto(photo) {
     url: photo.url,
     firstName: photo.firstName || "",
     lastName: photo.lastName || "",
+    guestFolder: photo.guestFolder || "",
+  };
+}
+
+function photoFromPathname(pathname, blob) {
+  const nested = pathname.match(/photos\/([^/]+)\/([^/]+)\.jpg$/);
+  if (nested) {
+    const folder = nested[1];
+    const id = nested[2].replace(/\.jpg$/, "");
+    if (folder === "manifest.json") {
+      return null;
+    }
+    return {
+      id,
+      createdAt: new Date(blob.uploadedAt).getTime(),
+      url: blob.url,
+      firstName: "",
+      lastName: "",
+      guestFolder: folder,
+    };
+  }
+
+  const flat = pathname.match(/photos\/([^/]+)\.jpg$/);
+  if (!flat) {
+    return null;
+  }
+  return {
+    id: flat[1],
+    createdAt: new Date(blob.uploadedAt).getTime(),
+    url: blob.url,
+    firstName: "",
+    lastName: "",
+    guestFolder: "",
   };
 }
 
@@ -80,20 +124,11 @@ async function listPhotos() {
   const knownIds = new Set(photos.map((photo) => photo.id));
   const page = await list({ prefix: "photos/", limit: 1000 });
   for (const blob of page.blobs) {
-    if (!blob.pathname.endsWith(".jpg")) {
+    const parsed = photoFromPathname(blob.pathname, blob);
+    if (!parsed || knownIds.has(parsed.id)) {
       continue;
     }
-    const id = blob.pathname.split("/").pop().replace(/\.jpg$/, "");
-    if (knownIds.has(id)) {
-      continue;
-    }
-    photos.push({
-      id,
-      createdAt: new Date(blob.uploadedAt).getTime(),
-      url: blob.url,
-      firstName: "",
-      lastName: "",
-    });
+    photos.push(parsed);
   }
   photos.sort((a, b) => b.createdAt - a.createdAt);
   return photos.map(publicPhoto);
@@ -130,7 +165,8 @@ module.exports = async function handler(req, res) {
       }
 
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
-      const blob = await put("photos/" + id + ".jpg", image, {
+      const folder = guestFolder(firstName, lastName);
+      const blob = await put("photos/" + folder + "/" + id + ".jpg", image, {
         access: "public",
         contentType: "image/jpeg",
         addRandomSuffix: false,
@@ -142,6 +178,7 @@ module.exports = async function handler(req, res) {
         url: blob.url,
         firstName,
         lastName,
+        guestFolder: folder,
       };
 
       const photos = await getManifest();
@@ -165,7 +202,10 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      const blobs = await list({ prefix: "photos/" + id + ".", limit: 10 });
+      const prefix = photo.guestFolder
+        ? "photos/" + photo.guestFolder + "/" + id + "."
+        : "photos/" + id + ".";
+      const blobs = await list({ prefix, limit: 10 });
       await Promise.all(blobs.blobs.map((item) => del(item.url)));
       await setManifest(photos.filter((item) => item.id !== id));
       send(res, 200, publicPhoto(photo));

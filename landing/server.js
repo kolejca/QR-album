@@ -71,13 +71,25 @@ function sanitizeName(value) {
     .slice(0, 40);
 }
 
+function guestFolder(firstName, lastName) {
+  const slug = (sanitizeName(firstName) + " " + sanitizeName(lastName))
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return slug || "guest";
+}
+
 function publicPhoto(photo) {
   return {
     id: photo.id,
     createdAt: photo.createdAt,
-    url: "/uploads/" + photo.file,
+    url: "/uploads/" + photo.file.replace(/\\/g, "/"),
     firstName: photo.firstName || "",
     lastName: photo.lastName || "",
+    guestFolder: photo.guestFolder || "",
   };
 }
 
@@ -190,9 +202,18 @@ const server = http.createServer(async (req, res) => {
 
       const photo = await enqueue(async () => {
         const id = createId();
-        const file = id + extension;
+        const folder = guestFolder(firstName, lastName);
+        const file = folder + "/" + id + extension;
+        await fs.promises.mkdir(path.join(uploads, folder), { recursive: true });
         await fs.promises.writeFile(path.join(uploads, file), buffer);
-        const saved = { id, createdAt: Date.now(), file, firstName, lastName };
+        const saved = {
+          id,
+          createdAt: Date.now(),
+          file,
+          firstName,
+          lastName,
+          guestFolder: folder,
+        };
         const photos = readManifest();
         photos.push(saved);
         writeManifest(photos);
@@ -213,7 +234,7 @@ const server = http.createServer(async (req, res) => {
         if (!photo) {
           return null;
         }
-        await fs.promises.rm(path.join(uploads, photo.file), { force: true });
+        await fs.promises.rm(path.join(uploads, photo.file.replace(/\//g, path.sep)), { force: true });
         writeManifest(photos.filter((item) => item.id !== id));
         return photo;
       });

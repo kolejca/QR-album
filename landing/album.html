@@ -91,10 +91,65 @@
         line-height: 1.5;
       }
 
+      .album {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+
+      .guest-section {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .guest-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--gold);
+      }
+
       .grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
+      }
+
+      .camera {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        background: #000;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .camera[hidden] {
+        display: none;
+      }
+
+      .camera video {
+        flex: 1;
+        width: 100%;
+        object-fit: cover;
+        background: #000;
+      }
+
+      .camera-actions {
+        display: flex;
+        gap: 12px;
+        padding: 16px;
+        background: rgba(15, 20, 25, 0.95);
+      }
+
+      .camera-actions button {
+        flex: 1;
+      }
+
+      .camera-actions .ghost {
+        background: transparent;
+        border: 1px solid var(--line);
       }
 
       figure {
@@ -248,15 +303,22 @@
     <main>
       <p id="status"></p>
       <p class="empty" id="empty">Притисни „Сликај“ и дозволи ја камерата. Сликите од сите гости се појавуваат овде.</p>
-      <div class="grid" id="grid"></div>
+      <div class="album" id="album"></div>
     </main>
 
-    <input id="camera" type="file" accept="image/*" capture="environment" hidden />
+    <div class="camera" id="cameraModal" hidden>
+      <video id="cameraVideo" playsinline autoplay muted></video>
+      <div class="camera-actions">
+        <button type="button" class="ghost" id="cancelCamera">Откажи</button>
+        <button type="button" id="captureCamera">Сними</button>
+      </div>
+    </div>
 
     <script>
       const GUEST_KEY = "qralbum-guest";
-      const cameraInput = document.getElementById("camera");
-      const grid = document.getElementById("grid");
+      const cameraModal = document.getElementById("cameraModal");
+      const cameraVideo = document.getElementById("cameraVideo");
+      const album = document.getElementById("album");
       const empty = document.getElementById("empty");
       const count = document.getElementById("count");
       const status = document.getElementById("status");
@@ -267,6 +329,7 @@
       const changeGuest = document.getElementById("changeGuest");
       let knownSnapshot = null;
       let guest = null;
+      let cameraStream = null;
 
       function loadGuest() {
         try {
@@ -375,6 +438,50 @@
         return total + " слики";
       }
 
+      function groupPhotos(photos) {
+        const groups = new Map();
+        for (const photo of photos) {
+          const label = guestName(photo);
+          if (!groups.has(label)) {
+            groups.set(label, []);
+          }
+          groups.get(label).push(photo);
+        }
+        return groups;
+      }
+
+      function renderPhotoCard(photo) {
+        const figure = document.createElement("figure");
+        const image = document.createElement("img");
+        image.alt = "Слика од " + guestName(photo);
+        image.src = photo.url;
+
+        const caption = document.createElement("figcaption");
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const time = document.createElement("span");
+        time.textContent = new Date(photo.createdAt).toLocaleString("mk");
+        meta.append(time);
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "remove";
+        remove.textContent = "Избриши";
+        remove.addEventListener("click", async () => {
+          try {
+            await deletePhoto(photo.id);
+            knownSnapshot = null;
+            await renderAlbum();
+          } catch (error) {
+            status.textContent = "Сликата не може да се избрише.";
+          }
+        });
+
+        caption.append(meta, remove);
+        figure.append(image, caption);
+        return figure;
+      }
+
       async function renderAlbum() {
         const photos = await listPhotos();
         const snapshot = JSON.stringify(photos);
@@ -382,44 +489,64 @@
           return;
         }
         knownSnapshot = snapshot;
-        grid.replaceChildren();
+        album.replaceChildren();
         empty.hidden = photos.length > 0;
         count.textContent = photoCount(photos.length);
 
-        for (const photo of photos) {
-          const figure = document.createElement("figure");
-          const image = document.createElement("img");
-          image.alt = "Слика од " + guestName(photo);
-          image.src = photo.url;
-
-          const caption = document.createElement("figcaption");
-          const meta = document.createElement("div");
-          meta.className = "meta";
-          const author = document.createElement("strong");
-          author.className = "author";
-          author.textContent = guestName(photo);
-          const time = document.createElement("span");
-          time.textContent = new Date(photo.createdAt).toLocaleString("mk");
-          meta.append(author, time);
-
-          const remove = document.createElement("button");
-          remove.type = "button";
-          remove.className = "remove";
-          remove.textContent = "Избриши";
-          remove.addEventListener("click", async () => {
-            try {
-              await deletePhoto(photo.id);
-              knownSnapshot = null;
-              await renderAlbum();
-            } catch (error) {
-              status.textContent = "Сликата не може да се избрише.";
-            }
-          });
-
-          caption.append(meta, remove);
-          figure.append(image, caption);
-          grid.append(figure);
+        for (const [label, items] of groupPhotos(photos)) {
+          const section = document.createElement("section");
+          section.className = "guest-section";
+          const title = document.createElement("h2");
+          title.className = "guest-title";
+          title.textContent = label;
+          const grid = document.createElement("div");
+          grid.className = "grid";
+          for (const photo of items) {
+            grid.append(renderPhotoCard(photo));
+          }
+          section.append(title, grid);
+          album.append(section);
         }
+      }
+
+      async function openCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          status.textContent = "Камерата не е достапна на овој уред.";
+          return;
+        }
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+        cameraVideo.srcObject = cameraStream;
+        cameraModal.hidden = false;
+      }
+
+      function closeCamera() {
+        if (cameraStream) {
+          cameraStream.getTracks().forEach((track) => track.stop());
+          cameraStream = null;
+        }
+        cameraVideo.srcObject = null;
+        cameraModal.hidden = true;
+      }
+
+      async function capturePhoto() {
+        const video = cameraVideo;
+        if (!video.videoWidth) {
+          throw new Error("camera");
+        }
+        const maxSide = 1600;
+        const scale = Math.min(1, maxSide / Math.max(video.videoWidth, video.videoHeight));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+        canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.72));
+        if (!blob) {
+          throw new Error("capture");
+        }
+        return new File([blob], "photo.jpg", { type: "image/jpeg" });
       }
 
       welcomeForm.addEventListener("submit", (event) => {
@@ -438,29 +565,34 @@
         clearGuest();
       });
 
-      shootButton.addEventListener("click", () => {
+      shootButton.addEventListener("click", async () => {
         if (!guest) {
           welcome.hidden = false;
           return;
         }
         status.textContent = "";
-        cameraInput.click();
+        try {
+          await openCamera();
+        } catch (error) {
+          status.textContent = "Не може да се отвори камерата. Дозволи ја камерата во прелистувачот.";
+        }
       });
 
-      cameraInput.addEventListener("change", async () => {
-        const file = cameraInput.files && cameraInput.files[0];
-        cameraInput.value = "";
-        if (!file) {
-          return;
-        }
+      document.getElementById("cancelCamera").addEventListener("click", () => {
+        closeCamera();
+      });
 
+      document.getElementById("captureCamera").addEventListener("click", async () => {
         status.textContent = "Се праќа сликата...";
         try {
+          const file = await capturePhoto();
+          closeCamera();
           await savePhoto(file);
           status.textContent = "";
           knownSnapshot = null;
           await renderAlbum();
         } catch (error) {
+          closeCamera();
           status.textContent = "Сликата не може да се зачува. Обиди се повторно.";
         }
       });
