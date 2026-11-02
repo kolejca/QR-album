@@ -587,7 +587,14 @@
 
       function guestName(photo) {
         const full = ((photo.firstName || "") + " " + (photo.lastName || "")).trim();
-        return full || "Гостин";
+        if (full) {
+          return full;
+        }
+        const folder = String(photo.guestFolder || "").trim();
+        if (folder && folder !== "guest") {
+          return folder.split("-").filter(Boolean).join(" ");
+        }
+        return "Гостин";
       }
 
       async function listPhotos() {
@@ -666,6 +673,13 @@
         }
         for (const group of groups.values()) {
           group.photos.sort((a, b) => b.createdAt - a.createdAt);
+          for (const photo of group.photos) {
+            const label = guestName(photo);
+            if (label !== "Гостин") {
+              group.label = label;
+              break;
+            }
+          }
         }
         return groups;
       }

@@ -51,21 +51,79 @@ function sanitizeName(value) {
 function guestFolder(firstName, lastName) {
   const slug = (sanitizeName(firstName) + " " + sanitizeName(lastName))
     .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9\u0400-\u04FF-]+/gi, "-")
+    .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
   return slug || "guest";
 }
 
+function displayNames(photo) {
+  let firstName = sanitizeName(photo.firstName);
+  let lastName = sanitizeName(photo.lastName);
+  if (firstName || lastName) {
+    return { firstName, lastName };
+  }
+
+  const folder = String(photo.guestFolder || "").trim();
+  if (!folder || folder === "guest") {
+    return { firstName: "", lastName: "" };
+  }
+
+  const parts = folder.split("-").filter(Boolean);
+  if (parts.length >= 2) {
+    return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+  }
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: "" };
+  }
+  return { firstName: "", lastName: "" };
+}
+
+function propagateNamesInFolder(photos) {
+  const byFolder = new Map();
+  for (const photo of photos) {
+    const folder = String(photo.guestFolder || "").trim();
+    if (!folder || folder === "guest") {
+      continue;
+    }
+    if (!byFolder.has(folder)) {
+      byFolder.set(folder, []);
+    }
+    byFolder.get(folder).push(photo);
+  }
+
+  for (const group of byFolder.values()) {
+    let firstName = "";
+    let lastName = "";
+    for (const photo of group) {
+      firstName = sanitizeName(photo.firstName) || firstName;
+      lastName = sanitizeName(photo.lastName) || lastName;
+    }
+    if (!firstName && !lastName) {
+      continue;
+    }
+    for (const photo of group) {
+      if (!sanitizeName(photo.firstName)) {
+        photo.firstName = firstName;
+      }
+      if (!sanitizeName(photo.lastName)) {
+        photo.lastName = lastName;
+      }
+    }
+  }
+}
+
 function publicPhoto(photo) {
+  const names = displayNames(photo);
   return {
     id: photo.id,
     createdAt: photo.createdAt,
     url: photo.url,
-    firstName: photo.firstName || "",
-    lastName: photo.lastName || "",
+    firstName: names.firstName,
+    lastName: names.lastName,
     guestFolder: photo.guestFolder || "",
   };
 }
@@ -196,6 +254,7 @@ async function listPhotos() {
     }
     photos.push(blobPhoto);
   }
+  propagateNamesInFolder(photos);
   photos.sort((a, b) => b.createdAt - a.createdAt);
   return photos.map(publicPhoto);
 }

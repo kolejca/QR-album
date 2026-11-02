@@ -352,6 +352,10 @@
         if (first || last) {
           return (first + " " + last).trim();
         }
+        const folder = String(photo.guestFolder || "").trim();
+        if (folder && folder !== "guest") {
+          return folder.split("-").filter(Boolean).join(" ");
+        }
         return "Гостин";
       }
 
